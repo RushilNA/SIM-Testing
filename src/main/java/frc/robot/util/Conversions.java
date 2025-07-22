@@ -30,7 +30,7 @@ public class Conversions {
             AngularVelocity rotations, double gearRatio, Distance wheelRadius) {
         /* Apply gear ratio to input rotations */
         var gearedRotations = rotations.in(RadiansPerSecond) / gearRatio;
-        /* Then multiply the wheel radius by radians of rotation to get distance */
+        /* Then multiply the wheel radius by radians of rotation to ge2t distance */
         return wheelRadius.per(Second).times(gearedRotations);
     }
 
