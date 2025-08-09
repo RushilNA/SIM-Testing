@@ -10,7 +10,12 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
+import com.ctre.phoenix6.hardware.CANrange;
+import com.ctre.phoenix6.hardware.TalonFX;
+
 public class Intake extends SubsystemBase {
+    private TalonFX roller = new TalonFX(30);
+    private CANrange canrange = new CANrange(45);
     private final IntakeIO io;
     private final IntakeIOInputsAutoLogged inputs;
 
@@ -18,8 +23,8 @@ public class Intake extends SubsystemBase {
     private final Alert followerMotorAlert = new Alert("Arm follower motor isn't connected", AlertType.kError);
     private final Alert encoderAlert = new Alert("Arm encoder isn't connected", AlertType.kError);
 
-    private ArmMode desiredMode = ArmMode.INTAKE;
-    private Angle targetAngle = ArmMode.INTAKE.targetAngle;
+    private IntakeMode desiredMode = IntakeMode.INTAKE;
+    private Angle targetAngle = IntakeMode.INTAKE.targetAngle;
 
     public Intake(IntakeIO io) {
         this.io = io;
@@ -36,9 +41,13 @@ public class Intake extends SubsystemBase {
         encoderAlert.set(!inputs.encoderConnected);
 
         // Mini-superstructure logic
-        if (desiredMode == ArmMode.STOP) {
+        if (desiredMode == IntakeMode.STOP) {
             stop();
-        } else {
+        } else if (desiredMode == IntakeMode.INTAKE){
+            
+            setPosition(targetAngle);
+        }
+        else{
             setPosition(targetAngle);
         }
 
@@ -65,7 +74,7 @@ public class Intake extends SubsystemBase {
     }
 
     /** Set arm to desired mode */
-    public void setState(ArmMode mode) {
+    public void setState(IntakeMode mode) {
         if (desiredMode != mode) {
             desiredMode = mode;
             targetAngle = mode.targetAngle;
@@ -75,7 +84,7 @@ public class Intake extends SubsystemBase {
     /** Check if arm is at target position */
     @AutoLogOutput
     public boolean isAtTarget() {
-        if (desiredMode == ArmMode.STOP) return true; // Treat stop as already "at target"
+        if (desiredMode == IntakeMode.STOP) return true; // Treat stop as already "at target"
         return getPosition().isNear(targetAngle, desiredMode.angleTolerance);
     }
 
@@ -86,7 +95,7 @@ public class Intake extends SubsystemBase {
     }
 
     /** Possible states for the arm */
-    public enum ArmMode {
+    public enum IntakeMode {
         STOP(Degrees.of(0)),
         Home(Degree.of(0)), // Stops motors — does NOT move to 0
         INTAKE(Degrees.of(180)),
@@ -95,7 +104,7 @@ public class Intake extends SubsystemBase {
         public final Angle targetAngle;
         public final Angle angleTolerance;
 
-        ArmMode(Angle targetAngle) {
+        IntakeMode(Angle targetAngle) {
             this.targetAngle = targetAngle;
             this.angleTolerance = Degrees.of(2);
         }

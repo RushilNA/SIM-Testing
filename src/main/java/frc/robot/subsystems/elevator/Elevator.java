@@ -131,7 +131,7 @@ public class Elevator extends SubsystemBase {
     /** Elevator logical modes (internal goal states) */
     public enum ElevatorMode {
         STOP(Inches.of(0)),
-        Home(Inches.of(0)),
+        Home(Inches.of(10)),
         INTAKE(Inches.of(0)),
         L1(Inches.of(12)),
         L2(Inches.of(24)),

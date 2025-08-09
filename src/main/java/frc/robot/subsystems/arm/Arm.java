@@ -38,7 +38,7 @@ public class Arm extends SubsystemBase {
         // Mini-superstructure logic
         if (desiredMode == ArmMode.STOP) {
             stop();
-        } else {
+        } else{
             setPosition(targetAngle);
         }
 
