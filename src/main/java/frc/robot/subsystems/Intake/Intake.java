@@ -1,112 +1,110 @@
-package frc.robot.subsystems.Intake;
+// package frc.robot.subsystems.Intake;
 
-import static edu.wpi.first.units.Units.*;
+// import static edu.wpi.first.units.Units.*;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import org.littletonrobotics.junction.AutoLogOutput;
-import org.littletonrobotics.junction.Logger;
+// import com.ctre.phoenix6.hardware.CANrange;
+// import com.ctre.phoenix6.hardware.TalonFX;
+// import edu.wpi.first.units.measure.Angle;
+// import edu.wpi.first.wpilibj.Alert;
+// import edu.wpi.first.wpilibj.Alert.AlertType;
+// import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+// import edu.wpi.first.wpilibj2.command.SubsystemBase;
+// import org.littletonrobotics.junction.AutoLogOutput;
+// import org.littletonrobotics.junction.Logger;
 
-import com.ctre.phoenix6.hardware.CANrange;
-import com.ctre.phoenix6.hardware.TalonFX;
+// public class Intake extends SubsystemBase {
+//     private TalonFX roller = new TalonFX(30);
+//     private CANrange canrange = new CANrange(45);
+//     private final IntakeIO io;
+//     private final IntakeIOInputsAutoLogged inputs;
 
-public class Intake extends SubsystemBase {
-    private TalonFX roller = new TalonFX(30);
-    private CANrange canrange = new CANrange(45);
-    private final IntakeIO io;
-    private final IntakeIOInputsAutoLogged inputs;
+//     private final Alert leaderMotorAlert = new Alert("Arm leader motor isn't connected", AlertType.kError);
+//     private final Alert followerMotorAlert = new Alert("Arm follower motor isn't connected", AlertType.kError);
+//     private final Alert encoderAlert = new Alert("Arm encoder isn't connected", AlertType.kError);
 
-    private final Alert leaderMotorAlert = new Alert("Arm leader motor isn't connected", AlertType.kError);
-    private final Alert followerMotorAlert = new Alert("Arm follower motor isn't connected", AlertType.kError);
-    private final Alert encoderAlert = new Alert("Arm encoder isn't connected", AlertType.kError);
+//     private IntakeMode desiredMode = IntakeMode.INTAKE;
+//     private Angle targetAngle = IntakeMode.INTAKE.targetAngle;
 
-    private IntakeMode desiredMode = IntakeMode.INTAKE;
-    private Angle targetAngle = IntakeMode.INTAKE.targetAngle;
+//     public Intake(IntakeIO io) {
+//         this.io = io;
+//         this.inputs = new IntakeIOInputsAutoLogged();
+//     }
 
-    public Intake(IntakeIO io) {
-        this.io = io;
-        this.inputs = new IntakeIOInputsAutoLogged();
-    }
+//     @Override
+//     public void periodic() {
+//         io.updateInputs(inputs);
+//         Logger.processInputs("Arm", inputs);
 
-    @Override
-    public void periodic() {
-        io.updateInputs(inputs);
-        Logger.processInputs("Arm", inputs);
+//         leaderMotorAlert.set(!inputs.leaderConnected);
+//         followerMotorAlert.set(!inputs.followerConnected);
+//         encoderAlert.set(!inputs.encoderConnected);
 
-        leaderMotorAlert.set(!inputs.leaderConnected);
-        followerMotorAlert.set(!inputs.followerConnected);
-        encoderAlert.set(!inputs.encoderConnected);
+//         // Mini-superstructure logic
+//         if (desiredMode == IntakeMode.STOP) {
+//             stop();
+//         } else if (desiredMode == IntakeMode.INTAKE) {
 
-        // Mini-superstructure logic
-        if (desiredMode == IntakeMode.STOP) {
-            stop();
-        } else if (desiredMode == IntakeMode.INTAKE){
-            
-            setPosition(targetAngle);
-        }
-        else{
-            setPosition(targetAngle);
-        }
+//             setPosition(targetAngle);
+//         } else {
+//             setPosition(targetAngle);
+//         }
 
-        // Dashboard logging
-        SmartDashboard.putString("Arm Mode", desiredMode.name());
-        SmartDashboard.putNumber("Arm Position (deg)", getPosition().in(Degrees));
-        SmartDashboard.putBoolean("Arm At Target", isAtTarget());
-    }
+//         // Dashboard logging
+//         SmartDashboard.putString("Arm Mode", desiredMode.name());
+//         SmartDashboard.putNumber("Arm Position (deg)", getPosition().in(Degrees));
+//         SmartDashboard.putBoolean("Arm At Target", isAtTarget());
+//     }
 
-    /** Command the motors to move to a given angle */
-    private void setPosition(Angle position) {
-        io.set(position);
-    }
+//     /** Command the motors to move to a given angle */
+//     private void setPosition(Angle position) {
+//         io.set(position);
+//     }
 
-    /** Stop all arm motors immediately */
-    private void stop() {
-        io.stop();
-    }
+//     /** Stop all arm motors immediately */
+//     private void stop() {
+//         io.stop();
+//     }
 
-    /** Get current arm position */
-    @AutoLogOutput
-    public Angle getPosition() {
-        return inputs.encoderPosition;
-    }
+//     /** Get current arm position */
+//     @AutoLogOutput
+//     public Angle getPosition() {
+//         return inputs.encoderPosition;
+//     }
 
-    /** Set arm to desired mode */
-    public void setState(IntakeMode mode) {
-        if (desiredMode != mode) {
-            desiredMode = mode;
-            targetAngle = mode.targetAngle;
-        }
-    }
+//     /** Set arm to desired mode */
+//     public void setState(IntakeMode mode) {
+//         if (desiredMode != mode) {
+//             desiredMode = mode;
+//             targetAngle = mode.targetAngle;
+//         }
+//     }
 
-    /** Check if arm is at target position */
-    @AutoLogOutput
-    public boolean isAtTarget() {
-        if (desiredMode == IntakeMode.STOP) return true; // Treat stop as already "at target"
-        return getPosition().isNear(targetAngle, desiredMode.angleTolerance);
-    }
+//     /** Check if arm is at target position */
+//     @AutoLogOutput
+//     public boolean isAtTarget() {
+//         if (desiredMode == IntakeMode.STOP) return true; // Treat stop as already "at target"
+//         return getPosition().isNear(targetAngle, desiredMode.angleTolerance);
+//     }
 
-    /** Get the current goal angle */
-    @AutoLogOutput
-    public Angle getTargetAngle() {
-        return targetAngle;
-    }
+//     /** Get the current goal angle */
+//     @AutoLogOutput
+//     public Angle getTargetAngle() {
+//         return targetAngle;
+//     }
 
-    /** Possible states for the arm */
-    public enum IntakeMode {
-        STOP(Degrees.of(0)),
-        Home(Degree.of(0)), // Stops motors — does NOT move to 0
-        INTAKE(Degrees.of(180)),
-       ;
+//     /** Possible states for the arm */
+//     public enum IntakeMode {
+//         STOP(Degrees.of(0)),
+//         Home(Degree.of(0)), // Stops motors — does NOT move to 0
+//         INTAKE(Degrees.of(180)),
+//         ;
 
-        public final Angle targetAngle;
-        public final Angle angleTolerance;
+//         public final Angle targetAngle;
+//         public final Angle angleTolerance;
 
-        IntakeMode(Angle targetAngle) {
-            this.targetAngle = targetAngle;
-            this.angleTolerance = Degrees.of(2);
-        }
-    }
-}
+//         IntakeMode(Angle targetAngle) {
+//             this.targetAngle = targetAngle;
+//             this.angleTolerance = Degrees.of(2);
+//         }
+//     }
+// }

@@ -30,6 +30,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.arm.armtest;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.vision.*;
 import org.ironmaple.simulation.SimulatedArena;
@@ -47,6 +48,7 @@ public class RobotContainer {
     // Subsystems
     private final Drive drive;
     private final Vision vision;
+    private final armtest arm;
 
     private SwerveDriveSimulation driveSimulation = null;
 
@@ -72,6 +74,7 @@ public class RobotContainer {
                         drive,
                         new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
                         new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
+                arm = new armtest();
 
                 break;
             case SIM:
@@ -96,6 +99,7 @@ public class RobotContainer {
                                 camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
                         new VisionIOPhotonVisionSim(
                                 camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
+                arm = new armtest();
 
                 break;
 
@@ -109,6 +113,7 @@ public class RobotContainer {
                         new ModuleIO() {},
                         (pose) -> {});
                 vision = new Vision(drive, new VisionIO() {}, new VisionIO() {});
+                arm = new armtest();
 
                 break;
         }
@@ -128,6 +133,7 @@ public class RobotContainer {
 
         // Configure the button bindings
         configureButtonBindings();
+        arm.setDefaultCommand(arm.setAngle(Degree.of(0)));
     }
 
     /**
@@ -180,6 +186,8 @@ public class RobotContainer {
                             Meters.of(1.35),
                             MetersPerSecond.of(1.5),
                             Degrees.of(-60)))));
+
+            controller.a().whileTrue(arm.setAngle(Degree.of(15)));
         }
     }
 
