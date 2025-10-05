@@ -17,8 +17,10 @@
 // /**
 //  * Superstructure2_0
 //  *
-//  * <p>Coordinator for Elevator + Arm + Intake. - Minimal transitions (no auto-home). - Safety nets ONLY in STOW: before
-//  * moving the arm to stow, auto-raise elevator to a clearance height. - Parallel Elevator+Arm when safe (outside STOW).
+//  * <p>Coordinator for Elevator + Arm + Intake. - Minimal transitions (no auto-home). - Safety nets ONLY in STOW:
+// before
+//  * moving the arm to stow, auto-raise elevator to a clearance height. - Parallel Elevator+Arm when safe (outside
+// STOW).
 //  * - After any temporary lift (during STOW), elevator returns to the requested final target.
 //  */
 // public class Superstructure2_0 extends SubsystemBase {

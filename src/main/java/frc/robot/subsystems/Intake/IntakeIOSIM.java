@@ -29,11 +29,13 @@
 // import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 
 // /**
-//  * Simulation implementation of the arm subsystem. This class extends ArmIOCTRE to provide a physics-based simulation of
+//  * Simulation implementation of the arm subsystem. This class extends ArmIOCTRE to provide a physics-based simulation
+// of
 //  * the arm mechanism using WPILib's simulation classes.
 //  *
 //  * <p>The simulation models: - Dual Kraken X60 FOC motors - Realistic arm physics including gravity and moment of
-//  * inertia - Position and velocity feedback through simulated encoders - Battery voltage effects - Motion limits (0° to
+//  * inertia - Position and velocity feedback through simulated encoders - Battery voltage effects - Motion limits (0°
+// to
 //  * 180°)
 //  */
 // public class IntakeIOSIM extends IntakeIOCTRE {
@@ -68,7 +70,8 @@
 //         double armMOI = SingleJointedArmSim.estimateMOI(armLength.in(Meters), armMass.in(Kilograms));
 
 //         // Create arm physics model
-//         LinearSystem<N2, N1, N2> linearSystem = LinearSystemId.createSingleJointedArmSystem(motor, armMOI, GEAR_RATIO);
+//         LinearSystem<N2, N1, N2> linearSystem = LinearSystemId.createSingleJointedArmSystem(motor, armMOI,
+// GEAR_RATIO);
 
 //         // Initialize arm simulation
 //         motorSimModel = new SingleJointedArmSim(

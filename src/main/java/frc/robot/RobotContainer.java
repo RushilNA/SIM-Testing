@@ -14,28 +14,25 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.units.Units.Degrees;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 import static frc.robot.subsystems.vision.VisionConstants.robotToCamera1;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.arm.armtest;
+import frc.robot.subsystems.arm.Realarm;
+import frc.robot.subsystems.arm.Realarmsim;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.vision.*;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -48,7 +45,8 @@ public class RobotContainer {
     // Subsystems
     private final Drive drive;
     private final Vision vision;
-    private final armtest arm;
+    private final Realarm arm;
+    private final Realarmsim armsim;
 
     private SwerveDriveSimulation driveSimulation = null;
 
@@ -74,7 +72,8 @@ public class RobotContainer {
                         drive,
                         new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
                         new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
-                arm = new armtest();
+                arm = new Realarm();
+                armsim = new Realarmsim(arm);
 
                 break;
             case SIM:
@@ -99,7 +98,8 @@ public class RobotContainer {
                                 camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
                         new VisionIOPhotonVisionSim(
                                 camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
-                arm = new armtest();
+                arm = new Realarm();
+                armsim = new Realarmsim(arm);
 
                 break;
 
@@ -113,8 +113,9 @@ public class RobotContainer {
                         new ModuleIO() {},
                         (pose) -> {});
                 vision = new Vision(drive, new VisionIO() {}, new VisionIO() {});
-                arm = new armtest();
+                arm = new Realarm();
 
+                armsim = new Realarmsim(arm);
                 break;
         }
 
@@ -133,7 +134,6 @@ public class RobotContainer {
 
         // Configure the button bindings
         configureButtonBindings();
-        arm.setDefaultCommand(arm.setAngle(Degree.of(0)));
     }
 
     /**
@@ -147,47 +147,43 @@ public class RobotContainer {
                 drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> -controller.getRightX()));
 
         // Lock to 0° when A button is held
-        controller
-                .a()
-                .whileTrue(DriveCommands.joystickDriveAtAngle(
-                        drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> new Rotation2d()));
 
         // Switch to X pattern when X button is pressed
-        controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
+        // controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
-        // Reset gyro / odometry
-        final Runnable resetGyro = Constants.currentMode == Constants.Mode.SIM
-                ? () -> drive.setPose(
-                        driveSimulation.getSimulatedDriveTrainPose()) // reset odometry to actual robot pose during
-                // simulation
-                : () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), new Rotation2d())); // zero gyro
-        controller.start().onTrue(Commands.runOnce(resetGyro, drive).ignoringDisable(true));
+        // // Reset gyro / odometry
+        // final Runnable resetGyro = Constants.currentMode == Constants.Mode.SIM
+        //         ? () -> drive.setPose(
+        //                 driveSimulation.getSimulatedDriveTrainPose()) // reset odometry to actual robot pose during
+        //         // simulation
+        //         : () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), new Rotation2d())); // zero gyro
+        // controller.start().onTrue(Commands.runOnce(resetGyro, drive).ignoringDisable(true));
 
         // Example Coral Placement Code
         // TODO: delete these code for your own project
         if (Constants.currentMode == Constants.Mode.SIM) {
             // L4 placement
-            controller.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-                    .addGamePieceProjectile(new ReefscapeCoralOnFly(
-                            driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-                            new Translation2d(0.4, 0),
-                            driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-                            driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-                            Meters.of(2),
-                            MetersPerSecond.of(1.5),
-                            Degrees.of(-80)))));
-            // L3 placement
-            controller.b().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-                    .addGamePieceProjectile(new ReefscapeCoralOnFly(
-                            driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-                            new Translation2d(0.4, 0),
-                            driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-                            driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-                            Meters.of(1.35),
-                            MetersPerSecond.of(1.5),
-                            Degrees.of(-60)))));
+            //     controller.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
+            //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
+            //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
+            //                     new Translation2d(0.4, 0),
+            //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+            //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
+            //                     Meters.of(2),
+            //                     MetersPerSecond.of(1.5),
+            //                     Degrees.of(-80)))));
+            //     // L3 placement
+            //     controller.b().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
+            //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
+            //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
+            //                     new Translation2d(0.4, 0),
+            //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+            //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
+            //                     Meters.of(1.35),
+            //                     MetersPerSecond.of(1.5),
+            //                     Degrees.of(-60)))));
 
-            controller.a().whileTrue(arm.setAngle(Degree.of(15)));
+            controller.a().whileTrue(arm.moveToAngleMMCommand(30)).whileFalse(arm.moveToAngleMMCommand(0));
         }
     }
 

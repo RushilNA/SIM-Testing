@@ -90,7 +90,8 @@
 //     }
 
 //     /**
-//      * Creates the motor configuration with appropriate settings. Sets up neutral mode, PID gains, and feedback device
+//      * Creates the motor configuration with appropriate settings. Sets up neutral mode, PID gains, and feedback
+// device
 //      * configuration.
 //      *
 //      * @return The configured TalonFXConfiguration object

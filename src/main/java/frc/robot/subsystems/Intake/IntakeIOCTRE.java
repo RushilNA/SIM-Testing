@@ -25,8 +25,10 @@
 // import edu.wpi.first.units.measure.Voltage;
 
 // /**
-//  * CTRE-based implementation of the ElevatorIO interface for controlling an elevator mechanism. This implementation uses
-//  * TalonFX motors and a CANcoder for position feedback. The elevator consists of a leader motor, a follower motor, and
+//  * CTRE-based implementation of the ElevatorIO interface for controlling an elevator mechanism. This implementation
+// uses
+//  * TalonFX motors and a CANcoder for position feedback. The elevator consists of a leader motor, a follower motor,
+// and
 //  * an encoder for precise positioning.
 //  */
 // public class IntakeIOCTRE implements IntakeIO {
@@ -63,7 +65,8 @@
 //     protected final Distance elevatorRadius = Inches.of(2);
 
 //     /**
-//      * Constructs a new ElevatorIOCTRE instance and initializes all hardware components. This includes configuring both
+//      * Constructs a new ElevatorIOCTRE instance and initializes all hardware components. This includes configuring
+// both
 //      * motors, setting up the follower relationship, and optimizing CAN bus utilization for all devices.
 //      */
 //     public IntakeIOCTRE() {
@@ -96,7 +99,8 @@
 //     }
 
 //     /**
-//      * Creates the motor configuration with appropriate settings. Sets up neutral mode, PID gains, and feedback device
+//      * Creates the motor configuration with appropriate settings. Sets up neutral mode, PID gains, and feedback
+// device
 //      * configuration.
 //      *
 //      * @return The configured TalonFXConfiguration object
@@ -121,7 +125,8 @@
 //     }
 
 //     /**
-//      * Updates the elevator's input values with the latest sensor readings. This includes position, velocity, voltage,
+//      * Updates the elevator's input values with the latest sensor readings. This includes position, velocity,
+// voltage,
 //      * and current measurements from both motors and the encoder, as well as connection status for all devices.
 //      *
 //      * @param inputs The ElevatorIOInputs object to update with the latest values
@@ -168,7 +173,8 @@
 //     }
 
 //     /**
-//      * Sets the desired distance for the elevator to move to. Converts the desired linear distance to encoder rotations
+//      * Sets the desired distance for the elevator to move to. Converts the desired linear distance to encoder
+// rotations
 //      * and applies position control.
 //      *
 //      * @param distance The target distance for the elevator

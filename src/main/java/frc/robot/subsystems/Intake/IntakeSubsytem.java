@@ -14,11 +14,13 @@
 // /**
 //  * IntakeSubsytem (current-sense version)
 //  *
-//  * <p>Changes from your original: - REMOVED CANrange usage entirely. - Game piece detection logic executes ONLY inside
+//  * <p>Changes from your original: - REMOVED CANrange usage entirely. - Game piece detection logic executes ONLY
+// inside
 //  * hasGamePiece(). - periodic() just publishes telemetry and the last cached detection state.
 //  *
 //  * <p>API: - setIntakeSpeed(double speed): + is inward intake - setIntakePivoit(double rotations): pivot setpoint in
-//  * TalonFX motor rotations (used by MotionMagic) - hasGamePiece(): reads roller stator current, debounces spike, returns
+//  * TalonFX motor rotations (used by MotionMagic) - hasGamePiece(): reads roller stator current, debounces spike,
+// returns
 //  * true on confirm - resetDetection(): clears debounce/cached state (optional to call when starting a new intake)
 //  */
 // public class IntakeSubsytem extends SubsystemBase {
@@ -111,7 +113,8 @@
 //     }
 
 //     /**
-//      * Detection runs ONLY here. Call frequently while intaking. Uses roller stator current spike + debounce to confirm
+//      * Detection runs ONLY here. Call frequently while intaking. Uses roller stator current spike + debounce to
+// confirm
 //      * capture.
 //      */
 //     public boolean hasGamePiece() {

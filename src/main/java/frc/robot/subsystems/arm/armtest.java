@@ -32,16 +32,15 @@ import yams.motorcontrollers.SmartMotorControllerConfig.TelemetryVerbosity;
 import yams.motorcontrollers.remote.TalonFXWrapper;
 
 public class armtest extends SubsystemBase {
-    private final TalonFX clawMotor = new TalonFX(20);
 
     private SmartMotorControllerConfig smcConfig = new SmartMotorControllerConfig(this)
             .withControlMode(ControlMode.CLOSED_LOOP)
             // Feedback Constants (PID Constants)
-            .withClosedLoopController(4, 0, 0, DegreesPerSecond.of(90), DegreesPerSecondPerSecond.of(45))
-            .withSimClosedLoopController(5, 0, 1, DegreesPerSecond.of(90), DegreesPerSecondPerSecond.of(45))
+            .withClosedLoopController(50, 0, 0, DegreesPerSecond.of(90), DegreesPerSecondPerSecond.of(45))
+            .withSimClosedLoopController(0.3, 0, 0, DegreesPerSecond.of(90), DegreesPerSecondPerSecond.of(45))
             // Feedforward Constants
-            .withFeedforward(new ArmFeedforward(0.3, 0, 1.2))
-            .withSimFeedforward(new ArmFeedforward(0.3, 1.75, 1.95))
+            .withFeedforward(new ArmFeedforward(0, 0, 0))
+            .withSimFeedforward(new ArmFeedforward(0, 0, 0))
             // Telemetry name and verbosity level
             .withTelemetry("ArmMotor", TelemetryVerbosity.HIGH)
             // Gearing from the motor rotor to final shaft.
@@ -51,16 +50,16 @@ public class armtest extends SubsystemBase {
             // Motor properties to prevent over currenting.
             .withMotorInverted(false)
             .withIdleMode(MotorMode.BRAKE)
-            .withStatorCurrentLimit(Amps.of(40))
+            .withStatorCurrentLimit(Amps.of(80))
             .withClosedLoopRampRate(Seconds.of(0.25))
             .withOpenLoopRampRate(Seconds.of(0.25));
 
     // Vendor motor controller object
-    private TalonFX talon = new TalonFX(30);
+    private TalonFX spark = new TalonFX(4);
 
     // Create our SmartMotorController from our Spark and config with the NEO.
     private SmartMotorController sparkSmartMotorController =
-            new TalonFXWrapper(talon, DCMotor.getKrakenX60(1), smcConfig);
+            new TalonFXWrapper(spark, DCMotor.getKrakenX60(1), smcConfig);
 
     private ArmConfig armCfg = new ArmConfig(sparkSmartMotorController)
             // Soft limit is applied to the SmartMotorControllers PID
@@ -131,7 +130,7 @@ public class armtest extends SubsystemBase {
     public void periodic() {
         // This method will be called once per scheduler run
         arm.updateTelemetry();
-        SmartDashboard.putNumber("Arm Position", arm.getAngle().in(Degrees));
+        SmartDashboard.putNumber("Postio", arm.getAngle().in(Degrees));
     }
 
     @Override
@@ -139,16 +138,4 @@ public class armtest extends SubsystemBase {
         // This method will be called once per scheduler run during simulation
         arm.simIterate();
     }
-
-    // private void setClawSpeed(double speed) {
-    //     clawMotor.set(speed);
-    // }
-
-    public Angle getAngle() {
-        return arm.getAngle();
-    }
-
-    //     public Command setClawRoller(double speed) {
-    //         return run(() -> setClawSpeed(speed)); // Example speed, adjust as needed
-    //     }
 }

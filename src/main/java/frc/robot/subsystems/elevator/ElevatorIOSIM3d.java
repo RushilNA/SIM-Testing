@@ -82,7 +82,8 @@
 //         motorSimModel.setInputVoltage(leaderSim.getMotorVoltage());
 //         motorSimModel.update(0.020);
 
-//         Angle position = Conversions.metersToRotations(Meters.of(motorSimModel.getPositionMeters()), 1, elevatorRadius);
+//         Angle position = Conversions.metersToRotations(Meters.of(motorSimModel.getPositionMeters()), 1,
+// elevatorRadius);
 //         AngularVelocity velocity = Conversions.metersToRotationsVel(
 //                 MetersPerSecond.of(motorSimModel.getVelocityMetersPerSecond()), 1, elevatorRadius);
 
@@ -121,7 +122,8 @@
 //                 new Rotation3d()));
 //         Pose3d stage2Pose = robotPose.plus(new Transform3d(
 //                 new Translation3d(
-//                         0, 0, MathUtil.clamp(elevH, Units.inchesToMeters(23.5375), 48) - Units.inchesToMeters(23.5375)),
+//                         0, 0, MathUtil.clamp(elevH, Units.inchesToMeters(23.5375), 48) -
+// Units.inchesToMeters(23.5375)),
 //                 new Rotation3d()));
 //         Pose3d carriagePose3d = robotPose.plus(new Transform3d(new Translation3d(0, 0, elevH), new Rotation3d()));
 
