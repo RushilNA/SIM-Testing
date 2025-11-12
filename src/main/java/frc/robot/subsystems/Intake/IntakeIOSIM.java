@@ -1,119 +1,131 @@
-// // Copyright (c) 2025 FRC 5712
-// //
-// // Use of this source code is governed by an MIT-style
-// // license that can be found in the LICENSE file at
-// // the root directory of this project.
+package frc.robot.subsystems.Intake;
 
-// package frc.robot.subsystems.Intake;
+import static edu.wpi.first.units.Units.Radians;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
-// import static edu.wpi.first.units.Units.Degrees;
-// import static edu.wpi.first.units.Units.Inches;
-// import static edu.wpi.first.units.Units.Kilograms;
-// import static edu.wpi.first.units.Units.Meters;
-// import static edu.wpi.first.units.Units.Pounds;
-// import static edu.wpi.first.units.Units.Radians;
-// import static edu.wpi.first.units.Units.RadiansPerSecond;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 
-// import com.ctre.phoenix6.sim.CANcoderSimState;
-// import com.ctre.phoenix6.sim.TalonFXSimState;
-// import edu.wpi.first.math.numbers.N1;
-// import edu.wpi.first.math.numbers.N2;
-// import edu.wpi.first.math.system.LinearSystem;
-// import edu.wpi.first.math.system.plant.DCMotor;
-// import edu.wpi.first.math.system.plant.LinearSystemId;
-// import edu.wpi.first.units.measure.Angle;
-// import edu.wpi.first.units.measure.AngularVelocity;
-// import edu.wpi.first.units.measure.Distance;
-// import edu.wpi.first.units.measure.Mass;
-// import edu.wpi.first.wpilibj.RobotController;
-// import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
+/**
+ * Intake pivot SIM using WPILib SingleJointedArmSim. - 1 motor, 150:1 gear ratio - Simple internal PD loop for
+ * setPosition(), or open-loop percent via setPercent() - Angles are relative to zeroHere()
+ */
+public class IntakeIOSIM implements IntakeIO {
 
-// /**
-//  * Simulation implementation of the arm subsystem. This class extends ArmIOCTRE to provide a physics-based simulation
-// of
-//  * the arm mechanism using WPILib's simulation classes.
-//  *
-//  * <p>The simulation models: - Dual Kraken X60 FOC motors - Realistic arm physics including gravity and moment of
-//  * inertia - Position and velocity feedback through simulated encoders - Battery voltage effects - Motion limits (0°
-// to
-//  * 180°)
-//  */
-// public class IntakeIOSIM extends IntakeIOCTRE {
+    // ───────── Config (tweak as needed) ─────────
+    private static final double kGearRatio = 150.0; // motor revs : pivot rev
+    private static final DCMotor kMotor = DCMotor.getFalcon500(1); // swap to Kraken if you prefer
+    private static final double kArmLength = 0.30; // meters (effective COM radius)
+    private static final double kArmMassKg = 2.0; // kg (approx for intake + bracket)
+    // Rough MOI estimate for a slender rod pivoting about one end: (1/3)*m*L^2
+    private static final double kMOI = (1.0 / 3.0) * kArmMassKg * kArmLength * kArmLength;
 
-//     /** Physics simulation model for the arm mechanism */
-//     private final SingleJointedArmSim motorSimModel;
+    // Motion limits (radians). Example: -20° to +120°
+    private static final double kMinAngleRad = Units.degreesToRadians(-20.0);
+    private static final double kMaxAngleRad = Units.degreesToRadians(+120.0);
 
-//     /** Simulation state for the leader motor */
-//     private final TalonFXSimState leaderSim;
-//     /** Simulation state for the follower motor */
-//     private final TalonFXSimState followerSim;
-//     /** Simulation state for the CANcoder */
-//     private final CANcoderSimState encoderSim;
+    // Control (very basic PD for sim position control)
+    private static final double kP_VoltPerRad = 18.0; // proportional term → volts/rad
+    private static final double kD_VoltPerRadPerS = 1.0; // derivative term → volts/(rad/s)
 
-//     /** Constructs a new ArmIOSIM instance. */
-//     public IntakeIOSIM() {
-//         super(); // Initialize hardware interface components
+    // Sim step
+    private static final double kDt = 0.02; // 20 ms
 
-//         // Get simulation states for all hardware
-//         leaderSim = leader.getSimState();
-//         followerSim = follower.getSimState();
-//         encoderSim = encoder.getSimState();
+    // ───────── Internal State ─────────
+    private final SingleJointedArmSim sim = new SingleJointedArmSim(
+            kMotor, // motor model
+            kGearRatio, // gear reduction
+            kMOI, // moment of inertia about joint
+            kArmLength, // arm length to COM
+            kMinAngleRad, // min angle (rad)
+            kMaxAngleRad, // max angle (rad)
+            true, // simulate gravity
+            0.0 // starting angle (rad)
+            );
 
-//         // Configure dual Kraken X60 FOC motors
-//         DCMotor motor = DCMotor.getKrakenX60Foc(2);
+    private enum Mode {
+        PERCENT,
+        POSITION
+    }
 
-//         // Define arm physical properties
-//         Distance armLength = Inches.of(12);
-//         Mass armMass = Pounds.of(15);
+    private Mode mode = Mode.PERCENT;
 
-//         // Calculate moment of inertia using WPILib helper
-//         double armMOI = SingleJointedArmSim.estimateMOI(armLength.in(Meters), armMass.in(Kilograms));
+    // open-loop percent ([-1, +1]) and closed-loop setpoint (rad)
+    private double percentCmd = 0.0;
+    private double targetRad = 0.0;
 
-//         // Create arm physics model
-//         LinearSystem<N2, N1, N2> linearSystem = LinearSystemId.createSingleJointedArmSystem(motor, armMOI,
-// GEAR_RATIO);
+    // zero offset handling (sim angle – zeroOffset = reported angle)
+    private double zeroOffsetRad = 0.0;
 
-//         // Initialize arm simulation
-//         motorSimModel = new SingleJointedArmSim(
-//                 linearSystem,
-//                 motor,
-//                 GEAR_RATIO,
-//                 armLength.in(Meters),
-//                 Degrees.of(0).in(Radians), // Lower limit (0°)
-//                 Degrees.of(180).in(Radians), // Upper limit (180)
-//                 true, // Enable gravity simulation
-//                 Degrees.of(90).in(Radians)); // Start at 90°
-//     }
+    // last commanded voltage (for logging)
+    private double lastVolts = 0.0;
 
-//     /**
-//      * Updates the simulation model and all simulated sensor inputs.
-//      *
-//      * @param inputs The ArmIOInputs object to update with simulated values
-//      */
-//     @Override
-//     public void updateInputs(IntakeIOInputs inputs) {
-//         // Update base class inputs first
-//         super.updateInputs(inputs);
+    @Override
+    public void updateInputs(IntakeIOInputs inputs) {
+        // Decide control action
+        double volts;
+        if (mode == Mode.PERCENT) {
+            volts = MathUtil.clamp(percentCmd * 12.0, -12.0, 12.0);
+        } else {
+            // PD control on (target - actual)
+            double angleRad = sim.getAngleRads();
+            double velRadPerS = sim.getVelocityRadPerSec();
+            double error = targetRad - angleRad;
+            volts = kP_VoltPerRad * error - kD_VoltPerRadPerS * velRadPerS;
+            volts = MathUtil.clamp(volts, -12.0, 12.0);
+        }
 
-//         // Simulate battery voltage effects on all devices
-//         leaderSim.setSupplyVoltage(RobotController.getBatteryVoltage());
-//         followerSim.setSupplyVoltage(RobotController.getBatteryVoltage());
-//         encoderSim.setSupplyVoltage(RobotController.getBatteryVoltage());
+        // Feed the sim and advance
+        sim.setInputVoltage(volts);
+        sim.update(kDt);
+        lastVolts = volts;
 
-//         // Update physics simulation
-//         motorSimModel.setInputVoltage(leaderSim.getMotorVoltage());
-//         motorSimModel.update(0.020); // Simulate 20ms timestep (50Hz)
+        // Populate inputs (convert to user-facing units; apply zero offset)
+        double angleWithZero = sim.getAngleRads() - zeroOffsetRad;
+        double velWithZero = sim.getVelocityRadPerSec(); // zero offset doesn't affect velocity
 
-//         // Get position and velocity from physics simulation
-//         Angle position = Radians.of(motorSimModel.getAngleRads());
-//         AngularVelocity velocity = RadiansPerSecond.of(motorSimModel.getVelocityRadPerSec());
+        inputs.motorConnected = true;
+        inputs.busVoltage = Volts.of(RobotController.getBatteryVoltage());
+        inputs.appliedVoltage = Volts.of(lastVolts);
 
-//         // Update simulated motor encoder readings (accounts for gear ratio)
-//         leaderSim.setRawRotorPosition(position.times(GEAR_RATIO));
-//         leaderSim.setRotorVelocity(velocity.times(GEAR_RATIO));
+        inputs.intakeAngle = Radians.of(angleWithZero);
+        inputs.velocity = RotationsPerSecond.of(velWithZero / (2.0 * Math.PI));
 
-//         // Update simulated CANcoder readings (direct angle measurement)
-//         encoderSim.setRawPosition(position);
-//         encoderSim.setVelocity(velocity);
-//     }
-// }
+        // simple current estimates (SingleJointedArmSim exposes motor current)
+        inputs.statorCurrent = edu.wpi.first.units.Units.Amps.of(sim.getCurrentDrawAmps());
+        inputs.supplyCurrent = inputs.statorCurrent; // close enough for sim
+    }
+
+    @Override
+    public void setPercent(double pct) {
+        mode = Mode.PERCENT;
+        percentCmd = MathUtil.clamp(pct, -1.0, 1.0);
+    }
+
+    @Override
+    public void setPosition(Angle angle) {
+        mode = Mode.POSITION;
+        // Angle is relative to zeroHere(); convert to absolute sim angle
+        double desiredRad = angle.in(Radians) + zeroOffsetRad;
+        // Respect physical limits to avoid integral windup/banging into stops
+        desiredRad = MathUtil.clamp(desiredRad, kMinAngleRad, kMaxAngleRad);
+        targetRad = desiredRad;
+    }
+
+    @Override
+    public void zeroHere() {
+        // Make the current sim angle read as 0
+        zeroOffsetRad = sim.getAngleRads();
+    }
+
+    @Override
+    public void stop() {
+        mode = Mode.PERCENT;
+        percentCmd = 0.0;
+    }
+}

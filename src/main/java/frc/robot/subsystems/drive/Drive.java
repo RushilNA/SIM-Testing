@@ -23,6 +23,9 @@ import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.PathPlannerLogging;
+import com.therekrab.autopilot.APConstraints;
+import com.therekrab.autopilot.APProfile;
+import com.therekrab.autopilot.Autopilot;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
@@ -61,6 +64,16 @@ import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends SubsystemBase implements Vision.VisionConsumer {
+
+    private final APConstraints kApConstraints =
+            new APConstraints().withAcceleration(20).withJerk(30).withVelocity(3);
+    private final APProfile kProfile = new APProfile(kApConstraints)
+            .withErrorXY(Centimeters.of(2))
+            .withErrorTheta(Degrees.of(0.5))
+            .withBeelineRadius(Centimeters.of(8));
+
+    public final Autopilot kAutopilot = new Autopilot(kProfile);
+
     // TunerConstants doesn't include these constants, so they are declared locally
     static final double ODOMETRY_FREQUENCY =
             new CANBus(TunerConstants.DrivetrainConstants.CANBusName).isNetworkFD() ? 250.0 : 100.0;
@@ -225,6 +238,37 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
         // Update gyro alert
         gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.currentMode != Mode.SIM);
     }
+
+    //      public Command drivelol(Pose2d pose) {
+    //     APTarget target = new APTarget(pose).withEntryAngle(Rotation2d.kZero);
+    //     SwerveRequest.FieldCentricFacingAngle m_request =
+    //         new SwerveRequest.FieldCentricFacingAngle()
+    //             .withForwardPerspective(ForwardPerspectiveValue.BlueAlliance)
+    //             .withDriveRequestType(com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType.Velocity)
+    //             .withHeadingPID(4, 0, 0);
+    //     return run(() -> {
+    //           ChassisSpeeds robotRelative = this.getChassisSpeeds();
+
+    //           Pose2d currentPose = this.getPose();
+
+    //           APResult output = kAutopilot.calculate(currentPose, robotRelative, target);
+    //           double veloX = output.vx().baseUnitMagnitude();
+    //           double veloY = output.vy().baseUnitMagnitude();
+
+    //           Rotation2d heading = output.targetAngle();
+
+    //           setControl(
+    //               m_request
+    //                   .withVelocityX(output.vx())
+    //                   .withVelocityY(output.vy())
+    //                   .withTargetDirection(output.targetAngle()));
+
+    //         runve
+
+    //           // Add logic here to use robotRelative if needed
+    //         })
+    //         .until(() -> kAutopilot.atTarget(getPose(), target));
+    //   }
 
     /**
      * Runs the drive at the desired velocity.

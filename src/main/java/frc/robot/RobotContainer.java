@@ -15,7 +15,6 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
-import static frc.robot.subsystems.vision.VisionConstants.robotToCamera1;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -23,14 +22,31 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.arm.Realarm;
-import frc.robot.subsystems.arm.Realarmsim;
+import frc.robot.subsystems.Armwheels;
+import frc.robot.subsystems.Intake.Intake;
+import frc.robot.subsystems.Intake.IntakeIO;
+import frc.robot.subsystems.Intake.IntakeIOSIM;
+import frc.robot.subsystems.Superstructure;
+import frc.robot.subsystems.Superstructure.WantedSuperState;
+import frc.robot.subsystems.UpperBoddy;
+import frc.robot.subsystems.arm.Arm;
+import frc.robot.subsystems.arm.ArmIO;
+import frc.robot.subsystems.arm.ArmIOCTRE;
+import frc.robot.subsystems.arm.ArmIOSIM;
 import frc.robot.subsystems.drive.*;
+import frc.robot.subsystems.elevator.Elevator;
+import frc.robot.subsystems.elevator.ElevatorIO;
+import frc.robot.subsystems.elevator.ElevatorIOSIM;
+import frc.robot.subsystems.flywheel.Flywheel;
+import frc.robot.subsystems.flywheel.FlywheelIO;
+import frc.robot.subsystems.flywheel.FlywheelIOSIM;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.TunableController;
+import frc.robot.util.TunableController.TunableControllerType;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
@@ -42,23 +58,29 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
  * Instead, the structure of the robot (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-    // Subsystems
-    private final Drive drive;
+    public final Drive drive;
+
+    private final Flywheel flywheel;
+    private final Elevator elevator;
+    private final Arm arm;
+    private final Intake intake;
+    private final UpperBoddy upperBoddy;
+    private final Armwheels armwheels;
+    private final Superstructure superstructure;
     private final Vision vision;
-    private final Realarm arm;
-    private final Realarmsim armsim;
 
     private SwerveDriveSimulation driveSimulation = null;
 
     // Controller
-    private final CommandXboxController controller = new CommandXboxController(0);
+    private final TunableController joystick =
+            new TunableController(0).withControllerType(TunableControllerType.QUADRATIC);
 
     // Dashboard inputs
     private final LoggedDashboardChooser<Command> autoChooser;
 
     /** The container for the robot. Contains subsystems, OI devices, and commands. */
     public RobotContainer() {
-        switch (Constants.currentMode) {
+        switch (frc.robot.Constants.currentMode) {
             case REAL:
                 // Real robot, instantiate hardware IO implementations
                 drive = new Drive(
@@ -72,8 +94,17 @@ public class RobotContainer {
                         drive,
                         new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
                         new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
-                arm = new Realarm();
-                armsim = new Realarmsim(arm);
+                flywheel = new Flywheel(new FlywheelIO() {});
+                // elevator = new Elevator(new ElevatorIOCTRE()); // Disabled to prevent robot movement if
+                // deployed to a real robot
+                elevator = new Elevator(new ElevatorIO() {});
+                // arm = new Arm(new ArmIOCTRE()); // Disabled to prevent robot movement if deployed to a
+                // real robot
+                arm = new Arm(new ArmIO() {});
+                intake = new Intake(new IntakeIO() {});
+                upperBoddy = new UpperBoddy(elevator, arm);
+                armwheels = new Armwheels();
+                superstructure = new Superstructure(upperBoddy, flywheel, intake, armwheels, drive);
 
                 break;
             case SIM:
@@ -98,8 +129,13 @@ public class RobotContainer {
                                 camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
                         new VisionIOPhotonVisionSim(
                                 camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
-                arm = new Realarm();
-                armsim = new Realarmsim(arm);
+                flywheel = new Flywheel(new FlywheelIOSIM());
+                elevator = new Elevator(new ElevatorIOSIM());
+                arm = new Arm(new ArmIOSIM());
+                intake = new Intake(new IntakeIOSIM());
+                armwheels = new Armwheels();
+                upperBoddy = new UpperBoddy(elevator, arm);
+                superstructure = new Superstructure(upperBoddy, flywheel, intake, armwheels, drive);
 
                 break;
 
@@ -113,9 +149,14 @@ public class RobotContainer {
                         new ModuleIO() {},
                         (pose) -> {});
                 vision = new Vision(drive, new VisionIO() {}, new VisionIO() {});
-                arm = new Realarm();
+                flywheel = new Flywheel(new FlywheelIO() {});
+                elevator = new Elevator(new ElevatorIO() {});
+                arm = new Arm(new ArmIOCTRE() {});
+                intake = new Intake(new IntakeIO() {});
+                armwheels = new Armwheels();
+                upperBoddy = new UpperBoddy(elevator, arm);
+                superstructure = new Superstructure(upperBoddy, flywheel, intake, armwheels, drive);
 
-                armsim = new Realarmsim(arm);
                 break;
         }
 
@@ -144,7 +185,22 @@ public class RobotContainer {
     private void configureButtonBindings() {
         // Default command, normal field-relative drive
         drive.setDefaultCommand(DriveCommands.joystickDrive(
-                drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> -controller.getRightX()));
+                drive, () -> -joystick.getLeftY(), () -> -joystick.getLeftX(), () -> -joystick.getRightX()));
+
+        joystick.leftTrigger(0.2)
+                .whileTrue(Commands.runOnce(
+                        () -> superstructure.setWantedState(WantedSuperState.INTAKE_CORAL), superstructure))
+                .whileFalse(Commands.runOnce(
+                        () -> superstructure.setWantedState(WantedSuperState.DEFAULT_STATE), superstructure));
+
+        // ───────── Score on Right Trigger ─────────
+        // Press RT: go to the selected scoring pose and run the score sequence (duck + outtake).
+        // Release RT: clear the "score now" latch so it's ready for next time.
+        joystick.rightTrigger()
+                .onTrue(superstructure.setStateCommand(Superstructure.WantedSuperState.SCORE_NOW))
+                .onFalse(edu.wpi.first.wpilibj2.command.Commands.runOnce(() -> superstructure.setScoreNow(false)));
+
+        joystick.x().onTrue(superstructure.setStateCommand(WantedSuperState.MOVE_TO_SELECTED));
 
         // Lock to 0° when A button is held
 
@@ -161,30 +217,7 @@ public class RobotContainer {
 
         // Example Coral Placement Code
         // TODO: delete these code for your own project
-        if (Constants.currentMode == Constants.Mode.SIM) {
-            // L4 placement
-            //     controller.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-            //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
-            //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-            //                     new Translation2d(0.4, 0),
-            //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-            //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-            //                     Meters.of(2),
-            //                     MetersPerSecond.of(1.5),
-            //                     Degrees.of(-80)))));
-            //     // L3 placement
-            //     controller.b().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-            //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
-            //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-            //                     new Translation2d(0.4, 0),
-            //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-            //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-            //                     Meters.of(1.35),
-            //                     MetersPerSecond.of(1.5),
-            //                     Degrees.of(-60)))));
 
-            controller.a().whileTrue(arm.moveToAngleMMCommand(30)).whileFalse(arm.moveToAngleMMCommand(0));
-        }
     }
 
     /**
@@ -196,15 +229,15 @@ public class RobotContainer {
         return autoChooser.get();
     }
 
-    public void resetSimulationField() {
-        if (Constants.currentMode != Constants.Mode.SIM) return;
+    public void resetSimulationField() { 
+        if (frc.robot.Constants.currentMode != frc.robot.Constants.Mode.SIM) return;
 
         driveSimulation.setSimulationWorldPose(new Pose2d(3, 3, new Rotation2d()));
         SimulatedArena.getInstance().resetFieldForAuto();
     }
 
     public void updateSimulation() {
-        if (Constants.currentMode != Constants.Mode.SIM) return;
+        if (frc.robot.Constants.currentMode != frc.robot.Constants.Mode.SIM) return;
 
         SimulatedArena.getInstance().simulationPeriodic();
         Logger.recordOutput("FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());

@@ -1,196 +1,110 @@
-// // Copyright (c) 2025 FRC 5712
-// //
-// // Use of this source code is governed by an MIT-style
-// // license that can be found in the LICENSE file at
-// // the root directory of this project.
+package frc.robot.subsystems.Intake;
 
-// package frc.robot.subsystems.Intake;
+import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.StatusCode;
+import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.units.Units;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Voltage;
 
-// import static edu.wpi.first.units.Units.Inches;
+/**
+ * CTRE IO for Intake pivot. - One TalonFX - Uses built-in integrated sensor - Gear ratio: 150:1 - Includes motor config
+ * internally (no external file)
+ */
+public class IntakeIOCTRE implements IntakeIO {
+    private final TalonFX motor = new TalonFX(30);
+    private final double gearRatio = 150.0; // 150 motor revs per pivot rev
+    private double zeroOffset = 0.0; // stored in motor rotations
 
-// import com.ctre.phoenix6.BaseStatusSignal;
-// import com.ctre.phoenix6.StatusCode;
-// import com.ctre.phoenix6.StatusSignal;
-// import com.ctre.phoenix6.configs.TalonFXConfiguration;
-// import com.ctre.phoenix6.controls.Follower;
-// import com.ctre.phoenix6.controls.PositionVoltage;
-// import com.ctre.phoenix6.hardware.CANcoder;
-// import com.ctre.phoenix6.hardware.TalonFX;
-// import com.ctre.phoenix6.signals.NeutralModeValue;
-// import edu.wpi.first.math.filter.Debouncer;
-// import edu.wpi.first.units.measure.Angle;
-// import edu.wpi.first.units.measure.AngularVelocity;
-// import edu.wpi.first.units.measure.Current;
-// import edu.wpi.first.units.measure.Distance;
-// import edu.wpi.first.units.measure.Voltage;
+    // Control modes
+    private final VoltageOut voltageOut = new VoltageOut(0).withEnableFOC(true);
+    private final PositionVoltage posCtrl = new PositionVoltage(0).withEnableFOC(true);
 
-// /**
-//  * CTRE-based implementation of the ElevatorIO interface for controlling an elevator mechanism. This implementation
-// uses
-//  * TalonFX motors and a CANcoder for position feedback. The elevator consists of a leader motor, a follower motor,
-// and
-//  * an encoder for precise positioning.
-//  */
-// public class IntakeIOCTRE implements IntakeIO {
-//     /** The gear ratio between the motor and the elevator mechanism */
-//     public static final double GEAR_RATIO = 2.0;
+    // Cached signals
+    private final StatusSignal<Voltage> appliedVoltage;
+    private final StatusSignal<Current> statorCurrent;
+    private final StatusSignal<Current> supplyCurrent;
+    private final StatusSignal<Angle> motorPos;
+    private final StatusSignal<AngularVelocity> motorVel;
 
-//     /** The leader TalonFX motor controller (CAN ID: 30) */
-//     public final TalonFX leader = new TalonFX(30);
-//     /** The follower TalonFX motor controller (CAN ID: 31) */
-//     public final TalonFX follower = new TalonFX(31);
+    public IntakeIOCTRE() {
 
-//     /** The CANcoder for position feedback (CAN ID: 32) */
-//     public final CANcoder encoder = new CANcoder(32);
+        // ─────────────── Motor Configuration ───────────────
+        TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-//     // Status signals for monitoring motor and encoder states
-//     private final StatusSignal<Angle> leaderPosition = leader.getPosition();
-//     private final StatusSignal<Angle> leaderRotorPosition = leader.getRotorPosition();
-//     private final StatusSignal<AngularVelocity> leaderVelocity = leader.getVelocity();
-//     private final StatusSignal<AngularVelocity> leaderRotorVelocity = leader.getRotorVelocity();
-//     private final StatusSignal<Voltage> leaderAppliedVolts = leader.getMotorVoltage();
-//     private final StatusSignal<Current> leaderStatorCurrent = leader.getStatorCurrent();
-//     private final StatusSignal<Current> followerStatorCurrent = follower.getStatorCurrent();
-//     private final StatusSignal<Current> leaderSupplyCurrent = leader.getSupplyCurrent();
-//     private final StatusSignal<Current> followerSupplyCurrent = follower.getSupplyCurrent();
-//     private final StatusSignal<Angle> encoderPosition = encoder.getPosition();
-//     private final StatusSignal<AngularVelocity> encoderVelocity = encoder.getVelocity();
+        // PID gains (tune these)
+        Slot0Configs slot0 = new Slot0Configs();
+        slot0.kP = 40.0; // proportional gain (example)
+        slot0.kI = 0.0;
+        slot0.kD = 0.5;
+        slot0.kV = 0.0;
+        cfg.Slot0 = slot0;
 
-//     // Debouncers for connection status (filters out brief disconnections)
-//     private final Debouncer leaderDebounce = new Debouncer(0.5);
-//     private final Debouncer followerDebounce = new Debouncer(0.5);
-//     private final Debouncer encoderDebounce = new Debouncer(0.5);
+        // current limit
+        cfg.CurrentLimits.SupplyCurrentLimit = 90;
+        cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
 
-//     /** The radius of the elevator pulley/drum, used for converting between rotations and linear distance */
-//     protected final Distance elevatorRadius = Inches.of(2);
+        // voltage and neutral settings
+        cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
 
-//     /**
-//      * Constructs a new ElevatorIOCTRE instance and initializes all hardware components. This includes configuring
-// both
-//      * motors, setting up the follower relationship, and optimizing CAN bus utilization for all devices.
-//      */
-//     public IntakeIOCTRE() {
-//         // Set up follower to mirror leader
-//         follower.setControl(new Follower(leader.getDeviceID(), false));
+        // apply
+        motor.getConfigurator().apply(cfg, 0.25);
 
-//         // Configure both motors with identical settings
-//         TalonFXConfiguration config = createMotorConfiguration();
-//         leader.getConfigurator().apply(config);
+        // ─────────────── Cached signals ───────────────
+        appliedVoltage = motor.getMotorVoltage();
+        statorCurrent = motor.getStatorCurrent();
+        supplyCurrent = motor.getSupplyCurrent();
+        motorPos = motor.getPosition();
+        motorVel = motor.getVelocity();
 
-//         // Configure update frequencies for all status signals
-//         BaseStatusSignal.setUpdateFrequencyForAll(
-//                 50.0, // 50Hz update rate
-//                 leaderPosition,
-//                 leaderRotorPosition,
-//                 leaderVelocity,
-//                 leaderRotorVelocity,
-//                 leaderAppliedVolts,
-//                 leaderStatorCurrent,
-//                 followerStatorCurrent,
-//                 leaderSupplyCurrent,
-//                 followerSupplyCurrent,
-//                 encoderPosition,
-//                 encoderVelocity);
+        BaseStatusSignal.setUpdateFrequencyForAll(
+                100, appliedVoltage, statorCurrent, supplyCurrent, motorPos, motorVel);
+    }
 
-//         // Optimize CAN bus usage for all devices
-//         leader.optimizeBusUtilization(4, 0.1);
-//         follower.optimizeBusUtilization(4, 0.1);
-//         encoder.optimizeBusUtilization(4, 0.1);
-//     }
+    @Override
+    public void updateInputs(IntakeIOInputs inputs) {
+        StatusCode code = BaseStatusSignal.refreshAll(appliedVoltage, statorCurrent, supplyCurrent, motorPos, motorVel);
 
-//     /**
-//      * Creates the motor configuration with appropriate settings. Sets up neutral mode, PID gains, and feedback
-// device
-//      * configuration.
-//      *
-//      * @return The configured TalonFXConfiguration object
-//      */
-//     private TalonFXConfiguration createMotorConfiguration() {
-//         var config = new TalonFXConfiguration();
-//         // Set motor to coast when stopped
-//         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
+        inputs.motorConnected = code.isOK();
+        inputs.appliedVoltage = appliedVoltage.getValue();
+        inputs.statorCurrent = statorCurrent.getValue();
+        inputs.supplyCurrent = supplyCurrent.getValue();
 
-//         // Configure PID and feedforward gains
-//         config.Slot0.kP = 24; // Proportional gain
-//         config.Slot0.kI = 0; // Integral gain
-//         config.Slot0.kD = 1.6; // Derivative gain
-//         config.Slot0.kS = 0.1; // Static friction compensation
-//         config.Slot0.kV = 0; // Velocity feedforward
-//         config.Slot0.kA = 0; // Acceleration feedforward
-//         config.Slot0.kG = 0.7297; // Gravity feedforward
+        // Convert integrated motor rotations → pivot rotations
+        double motorRot = motorPos.getValue().in(Units.Rotations);
+        double pivotRot = (motorRot - zeroOffset) / gearRatio;
+        inputs.intakeAngle = Units.Rotations.of(pivotRot);
 
-//         // Use the CANcoder as the remote feedback device
-//         config.Feedback.withRemoteCANcoder(encoder);
-//         return config;
-//     }
+        inputs.velocity = Units.RotationsPerSecond.of(motorVel.getValue().in(Units.RotationsPerSecond) / gearRatio);
+    }
 
-//     /**
-//      * Updates the elevator's input values with the latest sensor readings. This includes position, velocity,
-// voltage,
-//      * and current measurements from both motors and the encoder, as well as connection status for all devices.
-//      *
-//      * @param inputs The ElevatorIOInputs object to update with the latest values
-//      */
-//     @Override
-//     public void updateInputs(IntakeIOInputs inputs) {
-//         // Refresh all sensor data
-//         StatusCode leaderStatus = BaseStatusSignal.refreshAll(
-//                 leaderPosition,
-//                 leaderRotorPosition,
-//                 leaderVelocity,
-//                 leaderRotorVelocity,
-//                 leaderAppliedVolts,
-//                 leaderStatorCurrent,
-//                 leaderSupplyCurrent);
+    @Override
+    public void setPercent(double pct) {
+        motor.setControl(voltageOut.withOutput(12.0 * pct));
+    }
 
-//         StatusCode followerStatus = BaseStatusSignal.refreshAll(followerStatorCurrent, followerSupplyCurrent);
+    @Override
+    public void setPosition(Angle angle) {
+        double targetPivotRot = angle.in(Units.Rotations);
+        double targetMotorRot = zeroOffset + targetPivotRot * gearRatio;
+        motor.setControl(posCtrl.withPosition(Units.Rotations.of(targetMotorRot)));
+    }
 
-//         StatusCode encoderStatus = BaseStatusSignal.refreshAll(encoderPosition, encoderVelocity);
+    @Override
+    public void zeroHere() {
+        zeroOffset = motorPos.getValue().in(Units.Rotations);
+    }
 
-//         // Update connection status with debouncing
-//         inputs.leaderConnected = leaderDebounce.calculate(leaderStatus.isOK());
-//         inputs.followerConnected = followerDebounce.calculate(followerStatus.isOK());
-//         inputs.encoderConnected = encoderDebounce.calculate(encoderStatus.isOK());
-
-//         // Update position and velocity measurements
-//         inputs.leaderPosition = leaderPosition.getValue();
-//         inputs.leaderRotorPosition = leaderRotorPosition.getValue();
-//         inputs.leaderVelocity = leaderVelocity.getValue();
-//         inputs.leaderRotorVelocity = leaderRotorVelocity.getValue();
-
-//         inputs.encoderPosition = encoderPosition.getValue();
-//         inputs.encoderVelocity = encoderVelocity.getValue();
-
-//         // Update voltage and current measurements
-//         inputs.appliedVoltage = leaderAppliedVolts.getValue();
-//         inputs.leaderStatorCurrent = leaderStatorCurrent.getValue();
-//         inputs.followerStatorCurrent = followerStatorCurrent.getValue();
-//         inputs.leaderSupplyCurrent = leaderSupplyCurrent.getValue();
-//         inputs.followerSupplyCurrent = followerSupplyCurrent.getValue();
-
-//         // Calculate actual elevator distance using encoder position
-//         // Note: Using gear ratio of 1 since encoder rotations match elevator movement
-//     }
-
-//     /**
-//      * Sets the desired distance for the elevator to move to. Converts the desired linear distance to encoder
-// rotations
-//      * and applies position control.
-//      *
-//      * @param distance The target distance for the elevator
-//      */
-//     @Override
-//     public void set(Angle angle) {
-//         // Convert desired angle to encoder rotations
-//         leader.setControl(new PositionVoltage(angle));
-//     }
-
-//     /**
-//      * Stops all elevator movement by stopping the leader motor. The follower will also stop due to the follower
-//      * relationship.
-//      */
-//     @Override
-//     public void stop() {
-//         leader.stopMotor();
-//     }
-// }
+    @Override
+    public void stop() {
+        motor.stopMotor();
+    }
+}
