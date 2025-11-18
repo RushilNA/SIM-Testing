@@ -107,6 +107,11 @@ public class Flywheel extends SubsystemBase {
         return manualBeamBreakEntry.getBoolean(false);
     }
 
+    public boolean checkintake() {
+
+        return inputs.hasCoral;
+    }
+
     private curentState handleStateTransition() {
         // If you want special logic (like Intake’s HOLDING vs COLLECT based on a sensor),
         // put it here. For now, we mirror wanted->current directly.

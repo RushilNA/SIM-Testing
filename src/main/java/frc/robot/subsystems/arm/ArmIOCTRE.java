@@ -107,7 +107,7 @@ public class ArmIOCTRE implements ArmIO {
         config.Slot0.kI = 0; // Integral gain
         config.Slot0.kD = 11; // Derivative gain
         config.Slot0.kS = 0.08; // Static friction compensation
-        config.Slot0.kV = 0; // Velocity feedforward
+        config.Slot0.kV = 0.5; // Velocity feedforward
         config.Slot0.kA = 0; // Acceleration feedforward
         config.Slot0.kG = 0.0001; // Gravity feedforward
 

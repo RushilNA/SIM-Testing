@@ -19,6 +19,7 @@ import static frc.robot.subsystems.vision.VisionConstants.*;
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -49,6 +50,7 @@ import frc.robot.util.TunableController;
 import frc.robot.util.TunableController.TunableControllerType;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -129,7 +131,7 @@ public class RobotContainer {
                                 camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
                         new VisionIOPhotonVisionSim(
                                 camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
-                flywheel = new Flywheel(new FlywheelIOSIM());
+                flywheel = new Flywheel(new FlywheelIOSIM(driveSimulation));
                 elevator = new Elevator(new ElevatorIOSIM());
                 arm = new Arm(new ArmIOSIM());
                 intake = new Intake(new IntakeIOSIM());
@@ -201,6 +203,18 @@ public class RobotContainer {
                 .onFalse(edu.wpi.first.wpilibj2.command.Commands.runOnce(() -> superstructure.setScoreNow(false)));
 
         joystick.x().onTrue(superstructure.setStateCommand(WantedSuperState.MOVE_TO_SELECTED));
+        joystick.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
+                .addGamePieceProjectile(new ReefscapeCoralOnFly(
+                        driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
+                        new Translation2d(0.41, -0.2),
+                        driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+                        driveSimulation.getSimulatedDriveTrainPose().getRotation(),
+                        Meters.of(2.1),
+                        MetersPerSecond.of(1),
+                        Degrees.of(-90)))));
+
+
+        
 
         // Lock to 0° when A button is held
 
@@ -229,7 +243,7 @@ public class RobotContainer {
         return autoChooser.get();
     }
 
-    public void resetSimulationField() { 
+    public void resetSimulationField() {
         if (frc.robot.Constants.currentMode != frc.robot.Constants.Mode.SIM) return;
 
         driveSimulation.setSimulationWorldPose(new Pose2d(3, 3, new Rotation2d()));

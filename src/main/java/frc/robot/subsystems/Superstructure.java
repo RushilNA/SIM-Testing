@@ -239,14 +239,14 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
         private static final Rotation2d RIGHT_OFF = Rotation2d.fromDegrees(0);
 
         // STOW
-        public static final UpperBoddy.Pose STOW_ARM_45 = pose(0.25, Rotation2d.fromDegrees(45));
-        public static final UpperBoddy.Pose STOW_FINAL = pose(0.06, Rotation2d.fromDegrees(15));
+        public static final UpperBoddy.Pose STOW_ARM_45 = pose(1.2, Rotation2d.fromDegrees(0));
+        public static final UpperBoddy.Pose STOW_FINAL = pose(0.8, Rotation2d.fromDegrees(0));
 
         // Intake & Handoff
-        public static final UpperBoddy.Pose INTAKE = pose(0.40, Rotation2d.fromDegrees(60));
-        public static final UpperBoddy.Pose HANDOFF_ELEV_UP = pose(0.40, Rotation2d.fromDegrees(110));
-        public static final UpperBoddy.Pose HANDOFF_ARM_ZERO = pose(0.40, Rotation2d.fromDegrees(110));
-        public static final UpperBoddy.Pose HANDOFF_DROP = pose(0.18, Rotation2d.fromDegrees(110));
+        public static final UpperBoddy.Pose INTAKE = pose(1.2, Rotation2d.fromDegrees(180));
+        public static final UpperBoddy.Pose HANDOFF_ELEV_UP = pose(1.2, Rotation2d.fromDegrees(180));
+        public static final UpperBoddy.Pose HANDOFF_ARM_ZERO = pose(1.2, Rotation2d.fromDegrees(180));
+        public static final UpperBoddy.Pose HANDOFF_DROP = pose(0.8, Rotation2d.fromDegrees(180));
 
         // L1/L2/L3 bases
         public static final UpperBoddy.Pose L1_HIGH_BASE = pose(0.34, Rotation2d.fromDegrees(84));
@@ -272,7 +272,11 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
 
     private static final double kPoseSettleS = 0.15;
     private static final double kDuckElevDelta = -0.06;
-    private static final Rotation2d kDuckArmDelta = Rotation2d.fromDegrees(+15);
+    private static final Rotation2d L4kDuckArmDelta = Rotation2d.fromDegrees(0);
+    private static final Rotation2d L3kDuckArmDelta = Rotation2d.fromDegrees(30);
+    private static final Rotation2d L2kDuckArmDelta = Rotation2d.fromDegrees(45);
+    private static final Rotation2d L1kDuckArmDelta = Rotation2d.fromDegrees(0);
+
     private static final double kDuckHoldS = 0.25;
     private static final double kStowAfterArm45HoldS = 0.15;
     private static final double kStowAfterElevDownS = 0.15;
@@ -316,6 +320,14 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
         INTAKE_HOLD,
         TO_STOW
     }
+
+    private enum CoralState {
+        NONE,
+        IN_INTAKE,
+        IN_ARM
+    }
+
+    private CoralState coralState = CoralState.NONE;
 
     private StowPhase stowPhase = StowPhase.DONE;
     private HandoffPhase handoffPhase = HandoffPhase.DONE;
@@ -389,13 +401,24 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                 uperbody.getelevatorpos(),
                 Units.degreesToRadians(uperbody.getpos()),
                 pivoit.getPosition().in(Degrees));
+        double pivotDegNow = pivoit.getPosition().in(Degrees);
+
+        git.CoralLocation coralLoc =
+                switch (coralState) {
+                    case IN_INTAKE -> git.CoralLocation.IN_INTAKE;
+                    case IN_ARM -> git.CoralLocation.IN_ARM;
+                    case NONE -> git.CoralLocation.NONE;
+                };
+
+        Logger.recordOutput("SS/Coral Loc", coralLoc);
 
         final gitoutput kinimatic = git.computate(
                 0,
                 MathUtil.clamp(uperbody.getelevatorpos(), 0, MathUtil.clamp(uperbody.getelevatorpos() / 2.5, 0.3, 0.6)),
                 uperbody.getelevatorpos(),
                 uperbody.getpos(),
-                getCurrentLevelSimple());
+                getCurrentLevelSimple(),
+                coralLoc);
         Logger.recordOutput("mechanismPoses", new Pose3d[] {
             new Pose3d(
                     0,
@@ -406,6 +429,10 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
             kinimatic.getArmPose(),
             kinimatic.getCarriagePose()
         });
+
+        Logger.recordOutput("SS/Coral", new Pose3d(drive.getPose()).transformBy(kinimatic.coralT));
+
+        Logger.recordOutput("SS/Coral Rotation", kinimatic.coralT.getRotation());
     }
 
     public double map(double value, double inMin, double inMax, double outMin, double outMax) {
@@ -515,6 +542,7 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                     pivoit.setWantedState(wantedState.COLLECT_CORAL);
                 } else {
                     pivoit.Handoff();
+                    coralState = CoralState.IN_INTAKE;
                 }
                 arm.rollerStop();
             }
@@ -613,6 +641,7 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
         double t = Timer.getFPGATimestamp() - phaseStart;
         switch (stowPhase) {
             case ARM_TO_45 -> {
+                pivoit.Handoff();
                 if (uperbody.reachedSetpoint() && t >= kStowAfterArm45HoldS) {
                     uperbody.setTargetPose(
                             Poses.pose(Poses.elevM(Poses.STOW_FINAL), Poses.shoulderR(Poses.STOW_ARM_45)));
@@ -621,6 +650,8 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                 }
             }
             case ELEVATOR_DOWN -> {
+                pivoit.Handoff();
+
                 if (uperbody.reachedSetpoint() && t >= kStowAfterElevDownS) {
                     uperbody.setTargetPose(Poses.STOW_FINAL);
                     stowPhase = StowPhase.ARM_TO_FINAL;
@@ -628,9 +659,13 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                 }
             }
             case ARM_TO_FINAL -> {
+                pivoit.Handoff();
+
                 if (uperbody.reachedSetpoint()) stowPhase = StowPhase.DONE;
             }
             case DONE -> {
+                pivoit.Home();
+
                 /* idle */
             }
         }
@@ -677,11 +712,15 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                     intake.stop();
                     arm.rollerStop();
                     handoffPhase = HandoffPhase.DONE;
+                    uperbody.setTargetPose(Poses.HANDOFF_ELEV_UP);
+                    coralState = CoralState.IN_ARM;
                 }
             }
             case DONE -> {
                 /* finished */
-                setWantedState(WantedSuperState.DEFAULT_STATE);
+                if (uperbody.reachedSetpoint()) {
+                    setWantedState(WantedSuperState.DEFAULT_STATE);
+                }
             }
         }
     }
@@ -694,17 +733,29 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
             case MOVE -> {
                 boolean scorePressed = scoreNowLatched || scoreNowEntry.getBoolean(false);
                 if (uperbody.reachedSetpoint() && t >= kPoseSettleS && scorePressed && lastScoringTarget != null) {
+                    Rotation2d kDuckArmDelta = Rotation2d.fromDegrees(0);
+                    kDuckArmDelta = (getCurrentLevelSimple() == "L4")
+                            ? L4kDuckArmDelta
+                            : (getCurrentLevelSimple() == "L3")
+                                    ? L3kDuckArmDelta
+                                    : (getCurrentLevelSimple() == "L2") ? L2kDuckArmDelta : L1kDuckArmDelta;
+
                     UpperBoddy.Pose duck = Poses.pose(
                             Poses.elevM(lastScoringTarget) + kDuckElevDelta,
                             Poses.shoulderR(lastScoringTarget).plus(kDuckArmDelta));
                     uperbody.setTargetPose(duck);
+
                     arm.rollerOutFast();
+                    MapleSimUtils.scoreCoral(drive, uperbody, arm, getCurrentLevelSimple());
+                    coralState = CoralState.NONE;
+
                     scorePhase = ScorePhase.DUCK_OUTTAKE;
                     phaseStart = Timer.getFPGATimestamp();
                 }
             }
             case DUCK_OUTTAKE -> {
                 if (uperbody.reachedSetpoint() && t >= kDuckHoldS) {
+
                     arm.rollerStop();
                     UpperBoddy.Pose retreat = Poses.pose(
                             Poses.elevM(lastScoringTarget),
@@ -912,32 +963,32 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
 
     /** Convenience: collapse to coarse level (L1/L2/L3/Intake/Stow/etc.). */
     public String getCurrentLevelSimple() {
-        switch (getCurrentPoseLabel()) {
-            case L1_HIGH_LEFT, L1_HIGH_RIGHT, L1_LOW_LEFT, L1_LOW_RIGHT -> {
+        switch (getChosenScore()) {
+            case SCORE_L1_LEFT_HIGH, SCORE_L1_RIGHT_LOW, SCORE_L1_RIGHT_HIGH, SCORE_L1_LEFT_LOW -> {
                 return "L1";
             }
-            case L2_LEFT, L2_RIGHT -> {
+            case SCORE_L2_LEFT, SCORE_L2_RIGHT -> {
                 return "L2";
             }
-            case L3_LEFT, L3_RIGHT -> {
+            case SCORE_L3_LEFT, SCORE_L3_RIGHT -> {
                 return "L3";
             }
-            case INTAKE -> {
+            case INTAKE_CORAL -> {
                 return "INTAKE";
             }
-            case HANDOFF_ELEV_UP, HANDOFF_ARM_ZERO, HANDOFF_DROP -> {
+            case HANDOFF_CORAL_TO_ARM -> {
                 return "HANDOFF";
             }
-            case STOW_FINAL, STOW_ARM_45 -> {
+            case DEFAULT_STATE -> {
                 return "STOW";
             }
-            case BARGE -> {
+            case BARGE_SHOOT -> {
                 return "BARGE";
             }
-            case ALGAE_L2 -> {
+            case INTAKE_ALGAE_L2 -> {
                 return "ALGAE L2";
             }
-            case ALGAE_L3 -> {
+            case INTAKE_ALGAE_L3 -> {
                 return "ALGAE L3";
             }
             default -> {

@@ -116,6 +116,7 @@ public class FlywheelIOCTRE implements FlywheelIO {
         inputs.appliedVoltage = leaderAppliedVolts.getValue();
         inputs.leaderStatorCurrent = leaderStatorCurrent.getValue();
         inputs.leaderSupplyCurrent = leaderSupplyCurrent.getValue();
+        inputs.hasCoral = false; // Placeholder for coral detection logic
 
         // Optimize CAN bus utilization
         leader.optimizeBusUtilization(4, 0.1);

@@ -21,14 +21,19 @@ import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import org.ironmaple.simulation.IntakeSimulation;
+import org.ironmaple.simulation.drivesims.AbstractDriveTrainSimulation;
 
 public class FlywheelIOSIM extends FlywheelIOCTRE {
 
     private final DCMotorSim motorSimModel;
     private final TalonFXSimState leaderSim;
+    private final IntakeSimulation coralIntakeSim;
+
     private final DCMotor motor = DCMotor.getKrakenX60Foc(1);
 
-    public FlywheelIOSIM() {
+    public FlywheelIOSIM(AbstractDriveTrainSimulation driveSim) { // NEW signature
         super();
 
         leaderSim = leader.getSimState();
@@ -37,6 +42,14 @@ public class FlywheelIOSIM extends FlywheelIOCTRE {
         double moi = Pounds.of(8.0).in(Kilograms) * Math.pow(radius.in(Meters), 2);
         LinearSystem<N2, N1, N2> linearSystem = LinearSystemId.createDCMotorSystem(motor, moi, GEAR_RATIO);
         motorSimModel = new DCMotorSim(linearSystem, motor);
+        this.coralIntakeSim = IntakeSimulation.OverTheBumperIntake(
+                "Coral",
+                driveSim,
+                Meters.of(0.511), // width across the bumper – tune to your CAD
+                Meters.of(0.185), // extension distance out of frame – tune
+                IntakeSimulation.IntakeSide.RIGHT,
+                1 // how many corals this intake can hold
+                );
     }
 
     @Override
@@ -68,5 +81,27 @@ public class FlywheelIOSIM extends FlywheelIOCTRE {
         // DCMotorSim returns mechanism position/velocity (after gear ratio)
         leaderSim.setRotorVelocity(motorSimModel.getAngularVelocity().times(GEAR_RATIO));
         leaderSim.setRawRotorPosition(motorSimModel.getAngularPosition().times(GEAR_RATIO));
+        SmartDashboard.putNumber("Motor Voltage", motorVoltage);
+
+        // NEW: drive the MapleSim intake based on roller motor voltage
+        if (coralIntakeSim != null) {
+            // Threshold so tiny hold voltages don’t yank game pieces
+            boolean running = Math.abs(motorVoltage) > 0.3;
+            SmartDashboard.putBoolean("Check", running);
+            if (running) {
+                coralIntakeSim.startIntake();
+            } else {
+                coralIntakeSim.stopIntake();
+            }
+
+            // If your FlywheelIOInputs has a "hasCoral" or similar flag, feed it here
+            // (rename to match your actual inputs field)
+            inputs.hasCoral = coralIntakeSim.getGamePiecesAmount() > 0;
+        }
+    }
+
+    // Optional helper if you ever want direct access from elsewhere:
+    public IntakeSimulation getCoralIntakeSim() {
+        return coralIntakeSim;
     }
 }

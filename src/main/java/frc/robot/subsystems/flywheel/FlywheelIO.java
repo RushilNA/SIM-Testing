@@ -31,6 +31,7 @@ public interface FlywheelIO {
         public Voltage appliedVoltage = Volts.of(0.0);
         public Current leaderStatorCurrent = Amps.of(0);
         public Current leaderSupplyCurrent = Amps.of(0);
+        public boolean hasCoral = false;
     }
 
     /** Updates the set of loggable inputs. */

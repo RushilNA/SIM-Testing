@@ -129,6 +129,8 @@ public class UpperBoddy extends SubsystemBase {
         return arm.getPosition().in(Degrees);
     }
 
+    public void armfirst() {}
+
     // ─────────────────────────── Transition function ───────────────────────────
     private SystemState handleStateTransitions() {
         if (DriverStation.isEStopped() || DriverStation.isDisabled()) {
