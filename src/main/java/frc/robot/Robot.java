@@ -13,7 +13,14 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Threads;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import org.littletonrobotics.junction.LogFileUtil;
@@ -96,6 +103,17 @@ public class Robot extends LoggedRobot {
 
         // Return to normal thread priority
         Threads.setCurrentThreadPriority(false, 10);
+
+        Logger.recordOutput("Fake Robot Pose", new Pose2d(0, 0, new Rotation2d()));
+
+        Logger.recordOutput(
+                "Zereoed Component",
+                new Pose3d[] {new Pose3d(new Translation3d(0, 0, Units.inchesToMeters(0)), new Rotation3d(0, 00, 0))});
+        Logger.recordOutput("Zereoed Component Intake Test", new Pose3d[] {
+            new Pose3d(
+                    new Translation3d(0, 0, Units.inchesToMeters(0)),
+                    new Rotation3d(Math.sin(Timer.getTimestamp() - 1), 0, 0))
+        });
     }
 
     /** This function is called once when the robot is disabled. */

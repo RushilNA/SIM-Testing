@@ -213,9 +213,6 @@ public class RobotContainer {
                         MetersPerSecond.of(1),
                         Degrees.of(-90)))));
 
-
-        
-
         // Lock to 0° when A button is held
 
         // Switch to X pattern when X button is pressed

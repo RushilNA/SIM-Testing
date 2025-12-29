@@ -349,6 +349,10 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
 
     @Override
     public void periodic() {
+
+        if (intake.hasCoral() && current == CurrentSuperState.INTAKING) {
+            coralState = CoralState.IN_INTAKE;
+        }
         previous = current;
         current = handleTransitions();
         applyStates();
@@ -365,6 +369,7 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
         Logger.recordOutput("SS/HasCoral", uperbody.getpos());
         Logger.recordOutput("SS/Scorechooser", getChosenScore().toString());
         Logger.recordOutput("SS/Whereisgettingscored", getCurrentLevelSimple());
+        Logger.recordOutput("SS/Coral State", coralState);
         double pivotDeg = uperbody.getpos(); // or however you read it
         double armYawRad = MathUtil.angleModulus(Units.degreesToRadians(pivotDeg));
 
@@ -413,18 +418,19 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
         Logger.recordOutput("SS/Coral Loc", coralLoc);
 
         final gitoutput kinimatic = git.computate(
-                0,
+                pivoit.getPosition().baseUnitMagnitude(),
                 MathUtil.clamp(uperbody.getelevatorpos(), 0, MathUtil.clamp(uperbody.getelevatorpos() / 2.5, 0.3, 0.6)),
                 uperbody.getelevatorpos(),
                 uperbody.getpos(),
                 getCurrentLevelSimple(),
                 coralLoc);
+
         Logger.recordOutput("mechanismPoses", new Pose3d[] {
             new Pose3d(
-                    0,
-                    pivoit.getPosition().abs(Degrees) * -0.001,
-                    pivoit.getPosition().abs(Degrees) * 0.0042,
-                    new Rotation3d(pivoit.getPosition().baseUnitMagnitude(), 0, 0)),
+                    Units.inchesToMeters(0),
+                    Units.inchesToMeters(-13),
+                    Units.inchesToMeters(6.5),
+                    new Rotation3d(pivoit.getPosition().baseUnitMagnitude() + 0.5, 0, 0)),
             kinimatic.getElevatorPose(),
             kinimatic.getArmPose(),
             kinimatic.getCarriagePose()
@@ -541,9 +547,10 @@ public class Superstructure extends edu.wpi.first.wpilibj2.command.SubsystemBase
                 if (!intake.hasCoral()) {
                     pivoit.setWantedState(wantedState.COLLECT_CORAL);
                 } else {
+
                     pivoit.Handoff();
-                    coralState = CoralState.IN_INTAKE;
                 }
+
                 arm.rollerStop();
             }
 

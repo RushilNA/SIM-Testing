@@ -80,17 +80,17 @@ public class git {
 
                 // Tune these three numbers to match your ground intake geometry
                 Transform3d robotToIntakePivot = new Transform3d(
-                        Units.inchesToMeters(10.0), // forward from robot center to intake pivot
-                        Units.inchesToMeters(0.0), // sideways
-                        Units.inchesToMeters(6.0), // height off floor
-                        Rotation3d.kZero);
+                        Units.inchesToMeters(0), // forward from robot center to intake pivot
+                        Units.inchesToMeters(-13.5), // sideways
+                        Units.inchesToMeters(6.5), // height off floor
+                        new Rotation3d(intakePivotDeg, 0.0, 0.0));
 
-                Transform3d pivotRotation = new Transform3d(new Translation3d(), new Rotation3d(0.0, pivotRad, 0.0));
+                Transform3d pivotRotation = new Transform3d(new Translation3d(), new Rotation3d(0.0, 0, 0.0));
 
                 Transform3d pivotToCoral = new Transform3d(
-                        Units.inchesToMeters(10.0), // length from pivot to coral
-                        0.0,
-                        0.0,
+                        Units.inchesToMeters(5), // length from pivot to coral
+                        Units.inchesToMeters(-2),
+                        Units.inchesToMeters(10), // height from pivot to coral
                         Rotation3d.kZero);
 
                 coralT = robotToIntakePivot.plus(pivotRotation).plus(pivotToCoral);
